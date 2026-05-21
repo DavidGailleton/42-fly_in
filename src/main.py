@@ -1,3 +1,6 @@
+from numpy import uint32
+
+
 def main() -> int:
     """Run the main program.
 
@@ -5,7 +8,7 @@ def main() -> int:
         Exit status code.
     """
     try:
-        print("Fly-In")
+        print("Fly-In".index("t"))
         return 0
     except Exception as error:
         print(f"Error: {error}")
