@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = ["pydantic>=2.13.0", "numpy>=2.0.0"]
 
 [dependency-groups]
-dev = ["flake8>=7.0.0", "mypy>=1.10.0", "pytest>=8.0.0"]
+dev = ["flake8>=7.0.0", "mypy>=1.10.0", "pytest>=8.0.0", "flake8-pyproject"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -20,7 +20,7 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
-plugins = ["numpy.typing.mypy_plugin"]
+plugins = ["numpy.typing.mypy_plugin", "pydantic.mypy"]
 
 [tool.flake8]
 exclude = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]

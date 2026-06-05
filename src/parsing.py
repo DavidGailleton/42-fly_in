@@ -1,7 +1,6 @@
 from enum import Enum
+import re
 from pydantic import BaseModel, Field
-from numpy import ndarray, uint32, str_
-import numpy.typing as npt
 
 
 class ZoneType(Enum):
@@ -12,107 +11,138 @@ class ZoneType(Enum):
 
 
 class Hub(BaseModel):
-    name: str_
-    coordinate: tuple[uint32, uint32]
+    name: str
+    coordinate: tuple[int, int]
     zone: ZoneType = Field(default=ZoneType.NORMAL)
-    color: str_ | None = Field(default=None)
-    max_drones: uint32 = Field(default=uint32(1))
+    color: str | None = Field(default=None)
+    max_drones: int = Field(default=1)
 
 
 class Connection(BaseModel):
     hubs: tuple[Hub, Hub]
-    max_link_capacity: uint32 = Field(default=uint32(1))
+    max_link_capacity: int = Field(default=1)
 
 
-class Config(BaseModel):
-    nb_drones: uint32
-    start_hub: Hub
-    end_hub: Hub
-    hubs: npt.NDArray
-    connections: npt.NDArray
+class MapConfig(BaseModel):
+    nb_drones: int
+    start_hub: str
+    end_hub: str
+    hubs: list[Hub]
+    connections: list[Connection]
 
 
-def line_to_hub(line: str) -> Hub:
-    hub = {
-        "name": line.split(" ")[1],
-        "coordinate": (uint32(line.split(" ")[2]), uint32(line.split(" ")[3])),
-    }
-    if len(line.split(" ")) > 4:
-        try:
-            metadata = line[line.index("[") + 1 : line.index("]")].split(" ")
-            for data in metadata:
-                if data.startswith("color="):
-                    if "color" in hub.keys():
-                        raise Exception(
-                            f'"color" key is defined multiple time in {line}'
-                        )
-                    if data.removeprefix("color=") == "":
-                        raise Exception(f'"color" value not defined in {line}')
-                    hub["color"] = data.removeprefix("color=")
-                elif data.startswith("zone="):
-                    if "zone" in hub.keys():
-                        raise Exception(
-                            f'"zone" key is defined multiple time in {line}'
-                        )
-                    if data.removeprefix("zone=") == "":
-                        raise Exception(f'"zone" value not defined in {line}')
-                    hub["zone"] = ZoneType(
-                        data.removeprefix("zone=").capitalize()
-                    )
-                elif data.startswith("max_drones="):
-                    if "max_drones" in hub.keys():
-                        raise Exception(
-                            f'"max_drones" key is defined multiple time in {line}'
-                        )
-                    if data.removeprefix("max_drones=") == "":
-                        raise Exception(
-                            f'"max_drones" value not defined in {line}'
-                        )
-                    hub["max_drones"] = uint32(
-                        data.removeprefix("max_drones=")
-                    )
-                else:
-                    raise Exception(
-                        f"Invalid key=value format or unknown key for {data} in line {line}"
-                    )
-        except ValueError:
-            raise Exception(f"Invalid format in line : {line}")
-    return Hub(**hub)
+class Parsing:
+    def get_metadata(self, line: str) -> dict[str, str | int | ZoneType]:
+        res: dict[str, str | int | ZoneType] = {}
+        params = re.findall("[*]", line)
+        if len(params) > 1:
+            raise ValueError("Multiple metadata definition")
+        if len(params) == 0:
+            return {}
+        av_args = {"color", "max_drones", "max_link_capacity", "zone"}
+        for param in params[0].removeprefix("[").removesuffix("]").split(" "):
+            k, v = param.split("=", 1)
+            if k not in av_args:
+                raise ValueError(f"Unknown key {k}")
+            if k in list(res.keys()):
+                raise ValueError(f"Multiple definition of {k}")
+            if k == "zone":
+                match v:
+                    case "normal":
+                        v = ZoneType.NORMAL
+                    case "blocked":
+                        v = ZoneType.BLOCKED
+                    case "restricted":
+                        v = ZoneType.RESTRICTED
+                    case "priority":
+                        v = ZoneType.PRIORITY
+                    case _:
+                        raise ValueError(f"Unknown zone type : {v}")
+            res[k] = v
+        return res
 
+    def hub_from_line(self, line: str, act_config: dict) -> Hub:
+        settings = line.split(" ")
+        new_hub: dict = {}
+        new_hub["name"] = settings[1]
+        for hub in act_config["hubs"]:
+            if isinstance(hub, Hub):
+                if hub.name == new_hub["name"]:
+                    raise ValueError("Duplicate hubs name")
+        new_hub["coordinate"] = (int(settings[2]), int(settings[3]))
+        new_hub = new_hub | self.get_metadata(line)
+        return Hub(**new_hub)
 
-def line_to_connection(line: str) -> Connection:
-    hub_one = 
-    connection = {"hubs": (line.split(" ")[1], line.split(" ")[2])}
+    def connection_from_line(self, line: str, act_config: dict) -> Connection:
+        hub1, hub2 = line.split()[1].split("-", 1)
+        rhub1, rhub2 = None, None
+        for hub in act_config["hubs"]:
+            if rhub1 is None and hub.name == hub1:
+                rhub1 = hub
+            if rhub2 is None and hub.name == hub2:
+                rhub2 = hub
+        if rhub1 is None:
+            raise ValueError(f"Unknown hub {hub1}")
+        if rhub2 is None:
+            raise ValueError(f"Unknown hub {hub2}")
+        connection: dict = {
+            "hubs": (min([rhub1, rhub2]), max([rhub1, rhub2]))
+        } | self.get_metadata(line)
+        for con in act_config["connections"]:
+            if con.hubs == connection["hubs"]:
+                raise ValueError("Duplicate connection hubs")
+        return Connection(**connection)
 
-    return Connection(**connection)
-
-
-def parsing(file: str_):
-    with open(file) as content:
-        i: uint32 = uint32(0)
-        config: dict[str, list[Hub] | list[Connection] | uint32 | Hub] = {
-            "hubs": [],
-            "connections": [],
-        }
-        for line in content:
-            if line.startswith("#") or line == "":
-                continue
-            if i == 0 and not line.startswith("nb_drones: "):
-                raise Exception("First line should be nb_drones")
-
-            if line.startswith("nb_drones: "):
+    def get_map_data(self, file: str) -> MapConfig | None:
+        with open(file) as content:
+            config: dict[str, str | list[Hub] | list[Connection] | int] = {
+                "hubs": [],
+                "connections": [],
+            }
+            i = 0
+            for n_line, line in enumerate(content):
                 try:
-                    config["nb_drones"]
-                    raise Exception("nb_drones is defined multiple time")
-                except KeyError:
-                    config["nb_drones"] = uint32(
-                        line.removeprefix("nb_drones: ")
-                    )
-            elif line.startswith("start_hub: "):
-                pass
-            elif line.startswith("end_hub: "):
-                pass
-            elif line.startswith("hub: "):
-                pass
-            elif line.startswith("connection: "):
-                pass
+                    if line.strip().startswith("#") or line.strip() == "":
+                        continue
+                    if i == 0 and not line.startswith("nb_drones: "):
+                        raise ValueError("First line should be nb_drones")
+
+                    if line.startswith("nb_drones:"):
+                        if config.get("nb_drones") is None:
+                            config["nb_drones"] = int(
+                                line.removeprefix("nb_drones: ")
+                            )
+                        else:
+                            raise ValueError(
+                                "Multiple definition of nb_drones"
+                            )
+                    elif (
+                        line.startswith("start_hub:")
+                        or line.startswith("end_hub:")
+                        or line.startswith("hub:")
+                    ):
+                        new_hub = self.hub_from_line(line, config)
+                        if line.startswith("start_hub:"):
+                            if config.get("start_hub") is None:
+                                raise ValueError(
+                                    "Multiple definition of start_hub"
+                                )
+                            config["start_hub"] = new_hub.name
+                        elif line.startswith("end_hub:"):
+                            if config.get("end_hub") is None:
+                                raise ValueError(
+                                    "Multiple definition of end_hub"
+                                )
+                            config["end_hub"] = new_hub.name
+                        if isinstance(config["hubs"], list):
+                            config["hubs"].append(new_hub)
+                    elif line.startswith("connection: "):
+                        if isinstance(config["connections"], list):
+                            config["connections"].append(
+                                self.connection_from_line(line, config)
+                            )
+                    i += 1
+                except Exception as err:
+                    print(f"Line {n_line}: {line}\nError: {err}")
+                    return None
+        return MapConfig(**config)

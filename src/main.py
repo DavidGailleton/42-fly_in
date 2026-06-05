@@ -1,4 +1,4 @@
-from numpy import uint32
+from .parsing import Parsing
 
 
 def main() -> int:
@@ -8,6 +8,9 @@ def main() -> int:
         Exit status code.
     """
     try:
+        parser = Parsing()
+        map = parser.get_map_data("maps/easy/01_linear_path.txt")
+        print(map)
         print("Fly-In".index("t"))
         return 0
     except Exception as error:
