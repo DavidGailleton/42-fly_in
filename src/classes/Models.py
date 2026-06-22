@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -28,3 +29,10 @@ class MapConfig(BaseModel):
     end_hub: str
     hubs: list[Hub]
     connections: list[Connection]
+
+
+class TurnState:
+    @dataclass
+    class Turn:
+        drone_id: int
+        at_hub: str

@@ -1,3 +1,4 @@
+from pathlib import Path
 import re
 from typing import Any
 from src.classes.Exceptions import ParseError
@@ -14,7 +15,7 @@ class MapParser:
         self._start_hub: str | None = None
         self._end_hub: str | None = None
 
-    def parse_file(self, file_path: str) -> MapConfig:
+    def parse_file(self, file_path: Path) -> MapConfig:
         """Parse a map file and return a validated MapConfig."""
         self._reset()
 
