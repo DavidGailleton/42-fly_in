@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Self
 from pydantic import BaseModel, Field
 
 
@@ -30,9 +31,21 @@ class MapConfig(BaseModel):
     hubs: list[Hub]
     connections: list[Connection]
 
+    def get_hub_by_name(self, name: str) -> Hub | None:
+        for hub in self.hubs:
+            if hub.name == name:
+                return hub
+        return None
+
 
 class TurnState:
     @dataclass
-    class Turn:
+    class DroneState:
         drone_id: int
         at_hub: str
+
+    def __init__(self) -> None:
+        self.drones_state = []
+
+    def add_drone_state(self, drone_id: int, at_hub: str) -> None:
+        self.drones_state.append(self.DroneState(drone_id, at_hub))
