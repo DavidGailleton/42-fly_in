@@ -11,11 +11,33 @@ class ZoneType(Enum):
     PRIORITY = "priority"
 
 
+class Colors(Enum):
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    GREY = (127, 127, 127)
+    PURPLE = (128, 0, 128)
+    BROWN = (165, 42, 42)
+    ORANGE = (255, 165, 0)
+    MAROON = (128, 0, 0)
+    GOLD = (255, 215, 0)
+    DARKRED = (139, 0, 0)
+    VIOLET = (238, 130, 238)
+    CRIMSON = (220, 20, 60)
+    RAINBOW = (255, 255, 255)
+    YELLOW = (255, 255, 0)
+    CYAN = (0, 255, 255)
+    LIME = (50, 205, 50)
+    MAGENTA = (255, 0, 255)
+
+
 class Hub(BaseModel):
     name: str
     coordinate: tuple[int, int]
     zone: ZoneType = Field(default=ZoneType.NORMAL)
-    color: str | None = Field(default=None)
+    color: Colors = Field(default=Colors.RED)
     max_drones: int = Field(default=1)
 
 

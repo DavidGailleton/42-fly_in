@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 from typing import Any
 from src.classes.Exceptions import ParseError
-from src.classes.Models import MapConfig, ZoneType, Hub, Connection
+from src.classes.Models import MapConfig, ZoneType, Hub, Connection, Colors
 
 
 class MapParser:
@@ -245,7 +245,7 @@ class MapParser:
         key: str,
         value: str,
         line_number: int,
-    ) -> str | int | ZoneType:
+    ) -> str | int | ZoneType | Colors:
         """Convert one metadata value to its typed form."""
         if key == "zone":
             zone_map = {
@@ -259,6 +259,12 @@ class MapParser:
                     f"Line {line_number}: invalid zone type '{value}'"
                 )
             return zone_map[value]
+
+        if key == "color":
+            color_map = {str(color.name).lower(): color for color in Colors}
+            if value not in color_map:
+                return color_map["red"]
+            return color_map[value]
 
         if key in {"max_drones", "max_link_capacity"}:
             try:
