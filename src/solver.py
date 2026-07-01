@@ -191,6 +191,5 @@ def _solve_maps(maps: dict[str, MapConfig]) -> dict[str, list[TurnState]]:
         dist_map = solver._build_end_distance_map(map_name, map)
 
         steps = solver.get_drone_steps(map, dist_map)
-        print(f"{map_name} (len: {len(steps)})\n\n")
         solved_maps[map_name] = steps
     return solved_maps

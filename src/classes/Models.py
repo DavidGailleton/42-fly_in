@@ -50,10 +50,11 @@ class TurnState:
     def add_drone_state(self, drone_id: int, at_hub: str) -> None:
         self.drones_state.append(self.DroneState(drone_id, at_hub))
 
-    def get_hub_by_drone_id(self, drone_id: int) -> str:
+    def get_hub_by_drone_id(self, drone_id: int) -> str | None:
         for drone in self.drones_state:
             if drone.drone_id == drone_id:
                 return drone.at_hub
+        return None
 
     def get_already_takken_hubs(self) -> list[str]:
         return [drone_state.at_hub for drone_state in self.drones_state]
